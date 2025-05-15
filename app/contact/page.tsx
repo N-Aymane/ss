@@ -67,7 +67,7 @@ export default function ContactPage() {
                 <MapPin className="h-5 w-5 text-gray-600 mt-1 mr-3" />
                 <div>
                   <h3 className="font-medium">Address</h3>
-                  <p className="text-gray-600">123 Fashion Street, Design District, New York, NY 10001</p>
+                  <p className="text-gray-600"></p>
                 </div>
               </div>
 
@@ -75,7 +75,7 @@ export default function ContactPage() {
                 <Phone className="h-5 w-5 text-gray-600 mt-1 mr-3" />
                 <div>
                   <h3 className="font-medium">Phone</h3>
-                  <p className="text-gray-600">+1 (555) 123-4567</p>
+                  <p className="text-gray-600">+34 687 71 66 98</p>
                 </div>
               </div>
 
