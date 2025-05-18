@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { getProductById } from "@/lib/products"
 import { getDropByProductId } from "@/lib/drops"
 import DropBadge from "@/components/drop-badge"
+import { getAllProducts } from "@/lib/products"
 
 export async function generateMetadata({ params }) {
   const product = await getProductById(params.id)
@@ -18,13 +19,14 @@ export async function generateMetadata({ params }) {
   }
 
   return {
-    title: `${product.name} | NEC CO.`,
+    title: `${product.name} | SALESUCRE CO.`,
     description: product.description,
   }
 }
 
 export default async function ProductPage({ params }) {
   const product = await getProductById(params.id)
+  const products = await getAllProducts()
 
   if (!product) {
     notFound()
@@ -45,10 +47,10 @@ export default async function ProductPage({ params }) {
       <div className="grid md:grid-cols-2 gap-16">
         <div className="relative aspect-[3/4] w-full overflow-hidden bg-cream">
           <Image
-            src={product.imageUrl || "/placeholder.svg?height=900&width=600"}
+            src={product.imageUrl || "/placeholder.svg"}
             alt={product.name}
             fill
-            className="object-cover"
+            className="object-contain"
             priority
           />
           {drop && <DropBadge drop={drop} className="absolute top-6 right-6" />}
@@ -65,18 +67,45 @@ export default async function ProductPage({ params }) {
             <p className="text-gray-600 font-light leading-relaxed">{product.description}</p>
           </div>
 
+          {product.colors && product.colors.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="font-serif text-lg tracking-wider">Color</h2>
+              <div className="flex flex-wrap gap-3">
+                {product.colors.map((color) => {
+                  const colorClass =
+                    color === "black"
+                      ? "bg-black"
+                      : color === "navy"
+                        ? "bg-indigo-900"
+                        : color === "cream"
+                          ? "bg-amber-50"
+                          : "bg-gray-500"
+
+                  return (
+                    <div
+                      key={color}
+                      className={`h-8 w-8 rounded-full ${colorClass} cursor-pointer hover:ring-1 hover:ring-offset-2 hover:ring-gold transition-all border border-gold/20`}
+                      title={color.charAt(0).toUpperCase() + color.slice(1)}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             <h2 className="font-serif text-lg tracking-wider">Size</h2>
             <div className="flex flex-wrap gap-3">
-              {["XS", "S", "M", "L", "XL"].map((size) => (
-                <Button
-                  key={size}
-                  variant="outline"
-                  className="h-12 w-12 rounded-none font-light border-gold/30 hover:border-gold hover:text-gold"
-                >
-                  {size}
-                </Button>
-              ))}
+              {product.sizes &&
+                product.sizes.map((size) => (
+                  <Button
+                    key={size}
+                    variant="outline"
+                    className="h-12 w-12 rounded-none font-light border-gold/30 hover:border-gold hover:text-gold"
+                  >
+                    {size}
+                  </Button>
+                ))}
             </div>
           </div>
 
@@ -91,13 +120,37 @@ export default async function ProductPage({ params }) {
             <div className="space-y-4">
               <h2 className="font-serif text-lg tracking-wider">Details</h2>
               <ul className="space-y-2 text-gray-600 font-light">
-                <li>• 100% premium materials</li>
+                <li>• 100% premium cotton</li>
                 <li>• Ethically manufactured</li>
                 <li>• Designed for longevity</li>
                 <li>• Timeless silhouette</li>
               </ul>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Product recommendations */}
+      <div className="mt-24">
+        <h2 className="font-serif text-2xl tracking-wider mb-10 text-center">YOU MAY ALSO LIKE</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+          {products.slice(0, 3).map(
+            (relatedProduct) =>
+              relatedProduct.id !== product.id && (
+                <Link key={relatedProduct.id} href={`/shop/${relatedProduct.id}`} className="group">
+                  <div className="relative aspect-[3/4] w-full overflow-hidden mb-4">
+                    <Image
+                      src={relatedProduct.imageUrl || "/placeholder.svg"}
+                      alt={relatedProduct.name}
+                      fill
+                      className="object-cover transition-transform duration-700 ease-in-out group-hover:scale-105"
+                    />
+                  </div>
+                  <h3 className="font-light text-base tracking-wide">{relatedProduct.name}</h3>
+                  <p className="text-gold font-light mt-1">${relatedProduct.price.toFixed(2)}</p>
+                </Link>
+              ),
+          )}
         </div>
       </div>
     </div>

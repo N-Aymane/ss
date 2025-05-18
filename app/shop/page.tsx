@@ -4,19 +4,30 @@ import ShopFilter from "@/components/shop-filter"
 import { Suspense } from "react"
 import { ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Image from "next/image"
 
 export const metadata = {
-  title: "Shop | NEC CO.",
+  title: "Shop | SALESUCRE CO.",
   description: "Browse our collection of minimal, timeless clothing essentials",
 }
 
 export default async function ShopPage() {
+  // Force refresh products to ensure we get the latest data
   const products = await getProducts()
+
+  // Log products to verify data is correct
+  console.log("Shop products:", products)
 
   return (
     <div className="bg-offwhite">
       {/* Hero section */}
       <div className="relative h-[40vh] bg-black text-offwhite flex items-center justify-center mb-16">
+        <Image
+          src="/images/products/black-tshirt.png"
+          alt="Collection Banner"
+          fill
+          className="object-cover opacity-40"
+        />
         <div className="text-center z-10 px-4">
           <h1 className="font-serif text-4xl md:text-5xl tracking-wider mb-6 text-gold">COLLECTION</h1>
           <p className="max-w-xl mx-auto font-light tracking-wide text-gray-300">
@@ -61,6 +72,13 @@ export default async function ShopPage() {
                 </div>
               </div>
             </div>
+
+            {/* Debug info - remove in production */}
+            {products.length === 0 && (
+              <div className="p-4 mb-8 bg-red-50 text-red-800 rounded">
+                No products found. Please check your product data.
+              </div>
+            )}
 
             <Suspense
               fallback={<div className="min-h-[50vh] flex items-center justify-center">Loading products...</div>}

@@ -53,10 +53,10 @@ export default async function Home() {
       <section className="mb-24">
         <div className="relative h-[85vh] w-full overflow-hidden">
           <Image
-            src="/placeholder.svg?height=1080&width=1920"
+            src="/images/products/black-tshirt.png"
             alt="Hero Image"
             fill
-            className="object-cover"
+            className="object-cover object-center"
             priority
           />
           <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-offwhite p-6">
@@ -131,7 +131,7 @@ export default async function Home() {
           </Button>
         </div>
         <div className="relative h-[500px] w-full overflow-hidden">
-          <Image src="/placeholder.svg?height=1000&width=800" alt="About Image" fill className="object-cover" />
+          <Image src="/images/products/cream-tshirt.png" alt="About Image" fill className="object-contain" />
         </div>
       </section>
 

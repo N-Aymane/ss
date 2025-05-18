@@ -43,7 +43,7 @@ export default function SiteSettingsPage() {
 
   const handleToggleClosedMode = async (checked) => {
     setIsLoading(true)
-    try {
+    try { 
       const updatedSettings = await toggleClosedMode(checked, checked ? selectedDropId : null)
       setSettings(updatedSettings)
 
