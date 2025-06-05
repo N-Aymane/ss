@@ -9,23 +9,38 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import DropDialog from "@/components/admin/drop-dialog"
 import DeleteConfirmDialog from "@/components/admin/delete-confirm-dialog"
-import { getDrops, deleteDrop } from "@/lib/drops"
+import { toast } from "@/lib/toast"
+
+interface Drop {
+  id: string
+  title: string
+  description: string
+  dropDate: Date
+  productIds: string[]
+  createdAt: Date
+  updatedAt: Date
+}
 
 export default function AdminDropsPage() {
-  const [drops, setDrops] = useState([])
+  const [drops, setDrops] = useState<Drop[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [isDropDialogOpen, setIsDropDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentDrop, setCurrentDrop] = useState(null)
+  const [currentDrop, setCurrentDrop] = useState<Drop | null>(null)
 
   useEffect(() => {
     const fetchDrops = async () => {
       try {
-        const data = await getDrops()
+        const response = await fetch('/api/drops')
+        if (!response.ok) {
+          throw new Error('Failed to fetch drops')
+        }
+        const data = await response.json()
         setDrops(data)
       } catch (error) {
         console.error("Failed to fetch drops:", error)
+        toast.error("Failed to load drops. Please refresh the page.")
       } finally {
         setIsLoading(false)
       }
@@ -39,27 +54,39 @@ export default function AdminDropsPage() {
     setIsDropDialogOpen(true)
   }
 
-  const handleEditDrop = (drop) => {
+  const handleEditDrop = (drop: Drop) => {
     setCurrentDrop(drop)
     setIsDropDialogOpen(true)
   }
 
-  const handleDeleteDrop = (drop) => {
+  const handleDeleteDrop = (drop: Drop) => {
     setCurrentDrop(drop)
     setIsDeleteDialogOpen(true)
   }
 
   const confirmDeleteDrop = async () => {
+    if (!currentDrop) return
+
     try {
-      await deleteDrop(currentDrop.id)
+      const response = await fetch(`/api/drops/${currentDrop.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete drop')
+      }
+
       setDrops(drops.filter((d) => d.id !== currentDrop.id))
       setIsDeleteDialogOpen(false)
+      setCurrentDrop(null)
+      toast.success("Drop deleted successfully!")
     } catch (error) {
       console.error("Failed to delete drop:", error)
+      toast.error("Failed to delete drop. Please try again.")
     }
   }
 
-  const handleDropSave = (savedDrop) => {
+  const handleDropSave = (savedDrop: Drop) => {
     if (currentDrop) {
       // Update existing drop
       setDrops(drops.map((d) => (d.id === savedDrop.id ? savedDrop : d)))
@@ -76,7 +103,7 @@ export default function AdminDropsPage() {
       drop.description.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const getDropStatus = (dropDate) => {
+  const getDropStatus = (dropDate: Date) => {
     const now = new Date()
     const date = new Date(dropDate)
 

@@ -7,8 +7,13 @@ import { Package, ShoppingBag, Timer, LogOut, Menu, Settings } from "lucide-reac
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { checkAuth, logout } from "@/lib/auth"
+import ToastContainer from "@/components/ui/toast-container"
 
-export default function AdminLayout({ children }) {
+interface AdminLayoutProps {
+  children: React.ReactNode
+}
+
+export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -136,6 +141,7 @@ export default function AdminLayout({ children }) {
         {/* Main Content */}
         <main className="flex-1 p-6">{children}</main>
       </div>
+      <ToastContainer />
     </div>
   )
 }

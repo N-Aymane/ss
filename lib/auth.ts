@@ -1,58 +1,111 @@
-// This is a mock implementation for demo purposes
-// In a real app, this would use a proper authentication system
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import { NextRequest } from 'next/server'
+import { prisma } from './db'
 
-// Mock admin credentials
-const ADMIN_EMAIL = "admin@example.com"
-const ADMIN_PASSWORD = "password123"
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret'
 
-// Mock JWT token
-let authToken = null
+export interface JWTPayload {
+  userId: string
+  email: string
+  isAdmin: boolean
+}
 
-export async function login(email, password) {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12)
+}
 
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    // Generate a mock token
-    authToken = `mock-jwt-token-${Date.now()}`
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  return bcrypt.compare(password, hashedPassword)
+}
 
-    // Store in localStorage
-    if (typeof window !== "undefined") {
-      localStorage.setItem("authToken", authToken)
-    }
+export function generateToken(payload: JWTPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+}
 
-    return true
-  } else {
-    throw new Error("Invalid credentials")
+export function verifyToken(token: string): JWTPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JWTPayload
+  } catch {
+    return null
   }
 }
 
+export async function getAuthUser(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value
+
+  if (!token) {
+    return null
+  }
+
+  const payload = verifyToken(token)
+  if (!payload) {
+    return null
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      isAdmin: true,
+    },
+  })
+
+  return user
+}
+
+export async function requireAuth(request: NextRequest) {
+  const user = await getAuthUser(request)
+  if (!user) {
+    throw new Error('Authentication required')
+  }
+  return user
+}
+
+export async function requireAdmin(request: NextRequest) {
+  const user = await requireAuth(request)
+  if (!user.isAdmin) {
+    throw new Error('Admin access required')
+  }
+  return user
+}
+
+// Legacy functions for backward compatibility with existing frontend code
+export async function login(email: string, password: string) {
+  const response = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Login failed')
+  }
+
+  return true
+}
+
 export async function logout() {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  const response = await fetch('/api/auth/logout', {
+    method: 'POST',
+  })
 
-  authToken = null
-
-  // Remove from localStorage
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("authToken")
+  if (!response.ok) {
+    throw new Error('Logout failed')
   }
 
   return true
 }
 
 export async function checkAuth() {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  // Check localStorage for token
-  if (typeof window !== "undefined") {
-    const storedToken = localStorage.getItem("authToken")
-    if (storedToken) {
-      authToken = storedToken
-      return true
-    }
+  try {
+    const response = await fetch('/api/auth/me')
+    return response.ok
+  } catch {
+    return false
   }
-
-  return !!authToken
 }

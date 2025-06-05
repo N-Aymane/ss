@@ -11,7 +11,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-export default function DeleteConfirmDialog({ open, onOpenChange, onConfirm, title, description }) {
+interface DeleteConfirmDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onConfirm: () => void
+  title: string
+  description: string
+}
+
+export default function DeleteConfirmDialog({ open, onOpenChange, onConfirm, title, description }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>

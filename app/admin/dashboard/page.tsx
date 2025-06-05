@@ -8,23 +8,40 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import ProductDialog from "@/components/admin/product-dialog"
 import DeleteConfirmDialog from "@/components/admin/delete-confirm-dialog"
-import { getProducts, deleteProduct } from "@/lib/products"
+import { toast } from "@/lib/toast"
+interface Product {
+  id: string
+  name: string
+  description: string
+  price: number
+  imageUrl: string | null
+  category: string
+  colors: string[]
+  sizes: string[]
+  createdAt: Date
+  updatedAt: Date
+}
 
 export default function AdminDashboardPage() {
-  const [products, setProducts] = useState([])
+  const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentProduct, setCurrentProduct] = useState(null)
+  const [currentProduct, setCurrentProduct] = useState<Product | null>(null)
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const data = await getProducts()
+        const response = await fetch('/api/products')
+        if (!response.ok) {
+          throw new Error('Failed to fetch products')
+        }
+        const data = await response.json()
         setProducts(data)
       } catch (error) {
         console.error("Failed to fetch products:", error)
+        toast.error("Failed to load products. Please refresh the page.")
       } finally {
         setIsLoading(false)
       }
@@ -38,27 +55,39 @@ export default function AdminDashboardPage() {
     setIsProductDialogOpen(true)
   }
 
-  const handleEditProduct = (product) => {
+  const handleEditProduct = (product: Product) => {
     setCurrentProduct(product)
     setIsProductDialogOpen(true)
   }
 
-  const handleDeleteProduct = (product) => {
+  const handleDeleteProduct = (product: Product) => {
     setCurrentProduct(product)
     setIsDeleteDialogOpen(true)
   }
 
   const confirmDeleteProduct = async () => {
+    if (!currentProduct) return
+
     try {
-      await deleteProduct(currentProduct.id)
+      const response = await fetch(`/api/products/${currentProduct.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete product')
+      }
+
       setProducts(products.filter((p) => p.id !== currentProduct.id))
       setIsDeleteDialogOpen(false)
+      setCurrentProduct(null)
+      toast.success("Product deleted successfully!")
     } catch (error) {
       console.error("Failed to delete product:", error)
+      toast.error("Failed to delete product. Please try again.")
     }
   }
 
-  const handleProductSave = (savedProduct) => {
+  const handleProductSave = (savedProduct: Product) => {
     if (currentProduct) {
       // Update existing product
       setProducts(products.map((p) => (p.id === savedProduct.id ? savedProduct : p)))

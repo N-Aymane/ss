@@ -8,31 +8,53 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getDrops, getSiteSettings, toggleClosedMode } from "@/lib/drops"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "@/lib/toast"
+
+interface Drop {
+  id: string
+  title: string
+  description: string
+  dropDate: Date
+}
+
+interface SiteSettings {
+  id: string
+  closedMode: boolean
+  closedModeDropId: string | null
+}
 
 export default function SiteSettingsPage() {
-  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
-  const [settings, setSettings] = useState({ closedMode: false, closedModeDropId: null })
-  const [drops, setDrops] = useState([])
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
+  const [drops, setDrops] = useState<Drop[]>([])
   const [selectedDropId, setSelectedDropId] = useState("")
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [settingsData, dropsData] = await Promise.all([getSiteSettings(), getDrops()])
+        const [settingsResponse, dropsResponse] = await Promise.all([
+          fetch('/api/site-settings'),
+          fetch('/api/drops')
+        ])
+
+        if (!settingsResponse.ok || !dropsResponse.ok) {
+          throw new Error('Failed to fetch data')
+        }
+
+        const settingsData = await settingsResponse.json()
+        const dropsData = await dropsResponse.json()
 
         setSettings(settingsData)
         setDrops(dropsData)
 
-        if (settingsData.closedModeDropId) {
+        if (settingsData?.closedModeDropId) {
           setSelectedDropId(settingsData.closedModeDropId)
         } else if (dropsData.length > 0) {
           setSelectedDropId(dropsData[0].id)
         }
       } catch (error) {
         console.error("Failed to fetch data:", error)
+        toast.error("Failed to load settings. Please refresh the page.")
       } finally {
         setIsLoading(false)
       }
@@ -41,59 +63,69 @@ export default function SiteSettingsPage() {
     fetchData()
   }, [])
 
-  const handleToggleClosedMode = async (checked) => {
+  const handleToggleClosedMode = async (checked: boolean) => {
     setIsLoading(true)
-    try { 
-      const updatedSettings = await toggleClosedMode(checked, checked ? selectedDropId : null)
+    try {
+      const response = await fetch('/api/site-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          closedMode: checked,
+          closedModeDropId: checked ? selectedDropId : null,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update site settings')
+      }
+
+      const updatedSettings = await response.json()
       setSettings(updatedSettings)
 
-      toast({
-        title: checked ? "Site is now in closed mode" : "Site is now in normal mode",
-        description: checked ? "Visitors will only see the countdown timer" : "Visitors can now access the full site",
-        duration: 3000,
-      })
+      toast.success(checked ? "Site is now in closed mode" : "Site is now in normal mode")
     } catch (error) {
       console.error("Failed to update site mode:", error)
-      toast({
-        title: "Error updating site mode",
-        description: "Please try again",
-        variant: "destructive",
-        duration: 3000,
-      })
+      toast.error("Failed to update site mode. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleDropChange = (value) => {
+  const handleDropChange = (value: string) => {
     setSelectedDropId(value)
   }
 
   const handleSaveDropSelection = async () => {
+    if (!settings) return
+
     setIsLoading(true)
     try {
-      const updatedSettings = await toggleClosedMode(settings.closedMode, selectedDropId)
+      const response = await fetch('/api/site-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          closedMode: settings.closedMode,
+          closedModeDropId: selectedDropId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update site settings')
+      }
+
+      const updatedSettings = await response.json()
       setSettings(updatedSettings)
 
-      toast({
-        title: "Drop selection updated",
-        description: "The selected drop will be featured on the closed site",
-        duration: 3000,
-      })
+      toast.success("Drop selection updated successfully!")
     } catch (error) {
       console.error("Failed to update drop selection:", error)
-      toast({
-        title: "Error updating drop selection",
-        description: "Please try again",
-        variant: "destructive",
-        duration: 3000,
-      })
+      toast.error("Failed to update drop selection. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (isLoading) {
+  if (isLoading || !settings) {
     return (
       <div className="flex justify-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>

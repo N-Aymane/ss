@@ -1,112 +1,193 @@
-// This is a mock implementation for demo purposes
-// In a real app, this would connect to a database
+import { prisma } from './db'
 
-import { v4 as uuidv4 } from "uuid"
-
-// Mock data store
-let drops = [
-  {
-    id: "1",
-    title: "Summer Essentials Collection",
-    description: "Our new summer collection featuring lightweight, breathable fabrics perfect for warm weather.",
-    dropDate: "2025-06-15T10:00:00.000Z",
-    productIds: ["1", "3"],
-  },
-  {
-    id: "2",
-    title: "Winter Capsule",
-    description: "Stay warm with our new winter collection featuring premium wool and insulated pieces.",
-    dropDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-    productIds: ["2", "6"],
-  },
-]
-
-// Site settings
-let siteSettings = {
-  closedMode: false,
-  closedModeDropId: null,
+export interface Drop {
+  id: string
+  title: string
+  description: string
+  dropDate: Date
+  productIds: string[]
+  createdAt: Date
+  updatedAt: Date
 }
 
-export async function getDrops() {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-  return drops
+export interface SiteSettings {
+  id: string
+  closedMode: boolean
+  closedModeDropId: string | null
+  createdAt: Date
+  updatedAt: Date
 }
 
-export async function getNextDrop() {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
+function parseDropWithProducts(dbDrop: any): Drop {
+  return {
+    ...dbDrop,
+    productIds: dbDrop.dropProducts.map((dp: any) => dp.productId),
+  }
+}
+
+export async function getDrops(): Promise<Drop[]> {
+  const dbDrops = await prisma.drop.findMany({
+    include: {
+      dropProducts: true,
+    },
+    orderBy: { dropDate: 'desc' },
+  })
+
+  return dbDrops.map(parseDropWithProducts)
+}
+
+export async function getNextDrop(): Promise<Drop | null> {
+  const siteSettings = await getSiteSettings()
 
   // If we're in closed mode and have a specific drop ID selected
-  if (siteSettings.closedMode && siteSettings.closedModeDropId) {
-    const selectedDrop = drops.find((drop) => drop.id === siteSettings.closedModeDropId)
+  if (siteSettings?.closedMode && siteSettings.closedModeDropId) {
+    const selectedDrop = await prisma.drop.findUnique({
+      where: { id: siteSettings.closedModeDropId },
+      include: {
+        dropProducts: true,
+      },
+    })
     if (selectedDrop) {
-      return selectedDrop
+      return parseDropWithProducts(selectedDrop)
     }
   }
 
   // Otherwise return the next upcoming drop
   const now = new Date()
-  const futureDrops = drops
-    .filter((drop) => new Date(drop.dropDate) > now)
-    .sort((a, b) => new Date(a.dropDate) - new Date(b.dropDate))
+  const futureDrop = await prisma.drop.findFirst({
+    where: {
+      dropDate: {
+        gt: now,
+      },
+    },
+    include: {
+      dropProducts: true,
+    },
+    orderBy: { dropDate: 'asc' },
+  })
 
-  return futureDrops[0] || null
+  return futureDrop ? parseDropWithProducts(futureDrop) : null
 }
 
-export async function getDropByProductId(productId) {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 200))
+export async function getDropByProductId(productId: string): Promise<Drop | null> {
+  const dbDrop = await prisma.drop.findFirst({
+    where: {
+      dropProducts: {
+        some: {
+          productId,
+        },
+      },
+    },
+    include: {
+      dropProducts: true,
+    },
+  })
 
-  return drops.find((drop) => drop.productIds.includes(productId)) || null
+  return dbDrop ? parseDropWithProducts(dbDrop) : null
 }
 
-export async function saveDrop(drop) {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 800))
+export async function saveDrop(drop: Partial<Drop> & { id?: string; productIds: string[] }): Promise<Drop> {
+  const dropData = {
+    title: drop.title!,
+    description: drop.description!,
+    dropDate: drop.dropDate!,
+  }
 
   if (drop.id) {
     // Update existing drop
-    drops = drops.map((d) => (d.id === drop.id ? { ...drop } : d))
-    return drop
+    const dbDrop = await prisma.drop.update({
+      where: { id: drop.id },
+      data: dropData,
+      include: {
+        dropProducts: true,
+      },
+    })
+
+    // Update drop products
+    await prisma.dropProduct.deleteMany({
+      where: { dropId: drop.id },
+    })
+
+    if (drop.productIds.length > 0) {
+      await prisma.dropProduct.createMany({
+        data: drop.productIds.map(productId => ({
+          dropId: drop.id!,
+          productId,
+        })),
+      })
+    }
+
+    const updatedDrop = await prisma.drop.findUnique({
+      where: { id: drop.id },
+      include: {
+        dropProducts: true,
+      },
+    })
+
+    return parseDropWithProducts(updatedDrop!)
   } else {
     // Create new drop
-    const newDrop = {
-      ...drop,
-      id: uuidv4(),
+    const dbDrop = await prisma.drop.create({
+      data: dropData,
+      include: {
+        dropProducts: true,
+      },
+    })
+
+    // Create drop products
+    if (drop.productIds.length > 0) {
+      await prisma.dropProduct.createMany({
+        data: drop.productIds.map(productId => ({
+          dropId: dbDrop.id,
+          productId,
+        })),
+      })
     }
-    drops.push(newDrop)
-    return newDrop
+
+    const newDrop = await prisma.drop.findUnique({
+      where: { id: dbDrop.id },
+      include: {
+        dropProducts: true,
+      },
+    })
+
+    return parseDropWithProducts(newDrop!)
   }
 }
 
-export async function deleteDrop(id) {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 600))
-  drops = drops.filter((drop) => drop.id !== id)
+export async function deleteDrop(id: string): Promise<boolean> {
+  await prisma.drop.delete({
+    where: { id },
+  })
   return true
 }
 
-export async function getSiteSettings() {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 200))
-  return siteSettings
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+  const settings = await prisma.siteSettings.findFirst()
+  return settings
 }
 
-export async function updateSiteSettings(settings) {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-  siteSettings = { ...siteSettings, ...settings }
-  return siteSettings
+export async function updateSiteSettings(settings: Partial<SiteSettings>): Promise<SiteSettings> {
+  const existingSettings = await prisma.siteSettings.findFirst()
+
+  if (existingSettings) {
+    return await prisma.siteSettings.update({
+      where: { id: existingSettings.id },
+      data: settings,
+    })
+  } else {
+    return await prisma.siteSettings.create({
+      data: {
+        closedMode: settings.closedMode ?? false,
+        closedModeDropId: settings.closedModeDropId ?? null,
+      },
+    })
+  }
 }
 
-export async function toggleClosedMode(enabled, dropId = null) {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-
-  // Update the site settings
-  siteSettings.closedMode = enabled
-  siteSettings.closedModeDropId = enabled ? dropId : null
-
-  return siteSettings
+export async function toggleClosedMode(enabled: boolean, dropId: string | null = null): Promise<SiteSettings> {
+  return updateSiteSettings({
+    closedMode: enabled,
+    closedModeDropId: enabled ? dropId : null,
+  })
 }

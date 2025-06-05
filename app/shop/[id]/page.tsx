@@ -8,6 +8,7 @@ import { getProductById } from "@/lib/products"
 import { getDropByProductId } from "@/lib/drops"
 import DropBadge from "@/components/drop-badge"
 import { getAllProducts } from "@/lib/products"
+import AddToCartButton from "@/components/add-to-cart-button"
 
 export async function generateMetadata({ params }) {
   const product = await getProductById(params.id)
@@ -67,54 +68,9 @@ export default async function ProductPage({ params }) {
             <p className="text-gray-600 font-light leading-relaxed">{product.description}</p>
           </div>
 
-          {product.colors && product.colors.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="font-serif text-lg tracking-wider">Color</h2>
-              <div className="flex flex-wrap gap-3">
-                {product.colors.map((color) => {
-                  const colorClass =
-                    color === "black"
-                      ? "bg-black"
-                      : color === "navy"
-                        ? "bg-indigo-900"
-                        : color === "cream"
-                          ? "bg-amber-50"
-                          : "bg-gray-500"
 
-                  return (
-                    <div
-                      key={color}
-                      className={`h-8 w-8 rounded-full ${colorClass} cursor-pointer hover:ring-1 hover:ring-offset-2 hover:ring-gold transition-all border border-gold/20`}
-                      title={color.charAt(0).toUpperCase() + color.slice(1)}
-                    />
-                  )
-                })}
-              </div>
-            </div>
-          )}
 
-          <div className="space-y-4">
-            <h2 className="font-serif text-lg tracking-wider">Size</h2>
-            <div className="flex flex-wrap gap-3">
-              {product.sizes &&
-                product.sizes.map((size) => (
-                  <Button
-                    key={size}
-                    variant="outline"
-                    className="h-12 w-12 rounded-none font-light border-gold/30 hover:border-gold hover:text-gold"
-                  >
-                    {size}
-                  </Button>
-                ))}
-            </div>
-          </div>
-
-          <Button
-            className="w-full rounded-none h-14 text-sm tracking-widest font-light bg-black text-gold hover:bg-gold hover:text-black"
-            size="lg"
-          >
-            ADD TO CART
-          </Button>
+          <AddToCartButton product={product} />
 
           <div className="pt-6 border-t border-gold/20">
             <div className="space-y-4">
